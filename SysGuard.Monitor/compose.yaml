@@ -1,0 +1,7 @@
+﻿services:
+  sysguard.monitor.console:
+    image: sysguard.monitor.console
+    build:
+      context: .
+      dockerfile: SysGuard.Monitor.Console/Dockerfile
+
