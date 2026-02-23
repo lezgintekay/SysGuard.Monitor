@@ -55,14 +55,51 @@ internal abstract class Program
 
 
 private static void DisplayDashboard(SystemStats stats)
+{
+    // Simple math to check usage percentage
+    // Note: We need to parse strings to doubles for calculation
+    double total = double.Parse(stats.TotalRam);
+    double used = double.Parse(stats.UsedRam);
+    double usagePercentage = (used / total) * 100;
+
+    Console.WriteLine("======================================");
+    Console.WriteLine("       SYSGUARD LIVE MONITOR          ");
+    Console.WriteLine("======================================");
+    Console.WriteLine($"Last Update   : {stats.CapturedAt:HH:mm:ss}");
+    
+    // Total RAM is usually static, so white/gray is fine
+    Console.Write("Total RAM     : ");
+    Console.WriteLine($"{stats.TotalRam} MB");
+
+    // Used RAM with Color Indicator
+    Console.Write("Used RAM      : ");
+    
+    if (usagePercentage > 80) 
     {
-        Console.WriteLine("======================================");
-        Console.WriteLine("       SYSGUARD LIVE MONITOR          ");
-        Console.WriteLine("======================================");
-        Console.WriteLine($"Last Update   : {stats.CapturedAt:HH:mm:ss}");
-        Console.WriteLine($"Total RAM     : {stats.TotalRam} MB");
-        Console.WriteLine($"Used RAM      : {stats.UsedRam} MB");
-        Console.WriteLine("======================================");
-        Console.WriteLine("Press Ctrl+C to stop");
+        Console.ForegroundColor = ConsoleColor.Red; // Critical
     }
+    else if (usagePercentage > 50)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow; // Warning
+    }
+    else 
+    {
+        Console.ForegroundColor = ConsoleColor.Green; // Healthy
+    }
+
+    Console.WriteLine($"{stats.UsedRam} MB ({usagePercentage:F1}%)");
+    Console.ResetColor(); // Important: Reset color so the rest of the UI stays normal
+
+    Console.WriteLine("======================================");
+    
+    if (usagePercentage > 80)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("  ALERT: HIGH MEMORY USAGE DETECTED!  ");
+        Console.ResetColor();
+        Console.WriteLine("======================================");
+    }
+    
+    Console.WriteLine("Press Ctrl+C to stop");
+}
 }
