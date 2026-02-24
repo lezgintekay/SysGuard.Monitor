@@ -16,8 +16,8 @@ internal abstract class Program
         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         
         // Sum the first 7 values: user, nice, system, idle, iowait, irq, softirq
-        long idle = long.Parse(parts[4]);
-        long total = parts.Skip(1).Take(7).Select(long.Parse).Sum();
+        var idle = long.Parse(parts[4]);
+        var total = parts.Skip(1).Take(7).Select(long.Parse).Sum();
         
         return (idle, total);
     }
@@ -75,9 +75,11 @@ internal abstract class Program
                 }
             }
             
-            Thread.Sleep(500); // Total 1 second update interval
+            Thread.Sleep(500); 
         }
+        
     }
+    
 
     private static void DisplayDashboard(SystemStats stats)
     {
@@ -125,8 +127,11 @@ internal abstract class Program
     // Color coding logic based on percentage
     private static void ApplyColorCoding(double percentage)
     {
-        if (percentage > 80) Console.ForegroundColor = ConsoleColor.Red;
-        else if (percentage > 50) Console.ForegroundColor = ConsoleColor.Yellow;
-        else Console.ForegroundColor = ConsoleColor.Green;
+        Console.ForegroundColor = percentage switch
+        {
+            > 80 => ConsoleColor.Red,
+            > 50 => ConsoleColor.Yellow,
+            _ => ConsoleColor.Green
+        };
     }
 }
