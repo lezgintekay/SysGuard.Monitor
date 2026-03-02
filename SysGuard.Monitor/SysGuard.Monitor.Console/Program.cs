@@ -4,9 +4,9 @@ using System.Diagnostics;
 using System;
 using System.IO; 
 using System.Threading; 
-using SysGuard.Monitor.Models; // Doğru namespace
+using SysGuard.Monitor.Models; 
 using System.Linq;
-using System.Net.Http.Json; // JSON gönderimi için gerekli
+using System.Net.Http.Json; 
 
 internal abstract class Program
 {
@@ -19,11 +19,11 @@ internal abstract class Program
         return (idle, total);
     }
 
-    // Main metodunu 'async' yaptık ki API'ye veri gönderirken uygulama donmasın
+ 
     private static async Task Main()
     {
         Console.WriteLine("Starting SysGuard Agent...");
-        using var client = new HttpClient(); // HTTP istemcisi oluşturuldu
+        using var client = new HttpClient(); 
 
         while (true)
         {
@@ -37,15 +37,15 @@ internal abstract class Program
 
             var ramPsi = new ProcessStartInfo { FileName = "/bin/bash", Arguments = "-c \"free -m\"", RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
             using var ramProcess = Process.Start(ramPsi);
-            var ramResult = ramProcess?.StandardOutput.ReadToEnd();
+            var ramResult = await ramProcess?.StandardOutput.ReadToEndAsync()!;
 
             var uptimePsi = new ProcessStartInfo { FileName = "/bin/bash", Arguments = "-c \"uptime -p\"", RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
             using var uptimeProcess = Process.Start(uptimePsi);
-            var uptimeResult = uptimeProcess?.StandardOutput.ReadToEnd().Trim().Replace("up ", "");
+            var uptimeResult = (await uptimeProcess?.StandardOutput.ReadToEndAsync()!).Trim().Replace("up ", "");
 
             var diskPsi = new ProcessStartInfo { FileName = "/bin/bash", Arguments = "-c \"df -h / | awk 'NR==2 {print $5}'\"", RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
             using var diskProcess = Process.Start(diskPsi);
-            var diskResult = diskProcess?.StandardOutput.ReadToEnd().Trim().Replace("%", "");
+            var diskResult = (await diskProcess?.StandardOutput.ReadToEndAsync()!).Trim().Replace("%", "");
 
             if (!string.IsNullOrEmpty(ramResult))
             {
@@ -67,12 +67,14 @@ internal abstract class Program
                     Console.Clear();
                     DisplayDashboard(stats);
 
-                    // --- API'YE VERİ GÖNDERME ---
                     try 
                     {
                         await client.PostAsJsonAsync("http://localhost:5005/stats", stats);
                     }
-                    catch { /* API kapalıysa sessizce devam et */ }
+                    catch
+                    {
+                        // ignored
+                    }
                 }
                 catch (Exception ex) { Console.WriteLine($"Error: {ex.Message}"); }
             }
