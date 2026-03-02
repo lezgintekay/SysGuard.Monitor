@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SysGuard Live Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: white; display: flex; justify-content: center; padding-top: 50px; }
+        .card { background: #2d2d2d; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 400px; }
+        h2 { text-align: center; color: #00ff88; margin-bottom: 30px; }
+        .stat-item { margin-bottom: 20px; font-size: 1.2rem; display: flex; justify-content: space-between; }
+        .label { color: #aaa; }
+        .value { font-weight: bold; }
+        .progress-bg { background: #444; height: 10px; border-radius: 5px; margin-top: 5px; }
+        .progress-bar { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
+        .uptime { text-align: center; font-size: 0.9rem; color: #888; margin-top: 20px; border-top: 1px solid #444; padding-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>SYSGUARD MONITOR</h2>
+
+    <div class="stat-item">
+        <span class="label">CPU Usage</span>
+        <span id="cpu-val" class="value">0%</span>
+    </div>
+    <div class="progress-bg"><div id="cpu-bar" class="progress-bar" style="width: 0%; background: #00ff88;"></div></div>
+
+    <div class="stat-item" style="margin-top:20px">
+        <span class="label">RAM Usage</span>
+        <span id="ram-val" class="value">0 MB</span>
+    </div>
+    <div class="progress-bg"><div id="ram-bar" class="progress-bar" style="width: 0%; background: #00ff88;"></div></div>
+
+    <div class="stat-item" style="margin-top:20px">
+        <span class="label">Disk Usage</span>
+        <span id="disk-val" class="value">0%</span>
+    </div>
+    <div class="progress-bg"><div id="disk-bar" class="progress-bar" style="width: 0%; background: #00ff88;"></div></div>
+
+    <div id="uptime" class="uptime">Waiting for data...</div>
+</div>
+
+<script>
+    async function updateStats() {
+        try {
+            const response = await fetch('/stats');
+            if (!response.ok) return;
+            const data = await response.json();
+
+            document.getElementById('cpu-val').innerText = data.cpuUsage + '%';
+            document.getElementById('cpu-bar').style.width = data.cpuUsage + '%';
+
+            document.getElementById('ram-val').innerText = data.usedRam + ' MB';
+            const ramPercent = (parseInt(data.usedRam) / parseInt(data.totalRam)) * 100;
+            document.getElementById('ram-bar').style.width = ramPercent + '%';
+
+            document.getElementById('disk-val').innerText = data.diskUsage + '%';
+            document.getElementById('disk-bar').style.width = data.diskUsage + '%';
+
+            document.getElementById('uptime').innerText = 'Uptime: ' + data.uptime;
+
+            document.getElementById('cpu-bar').style.background = data.cpuUsage > 80 ? '#ff4444' : '#00ff88';
+        } catch (e) { console.error("Veri alınamadı"); }
+    }
+
+    setInterval(updateStats, 1000);
+    updateStats();
+</script>
+</body>
+</html>

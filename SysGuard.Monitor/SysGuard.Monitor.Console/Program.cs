@@ -1,11 +1,12 @@
-﻿namespace SysGuard.Monitor.Console; 
+﻿namespace SysGuard.Monitor.Console;
 
 using System.Diagnostics;
 using System;
 using System.IO; 
 using System.Threading; 
-using Models;
+using SysGuard.Monitor.Models; // Doğru namespace
 using System.Linq;
+using System.Net.Http.Json; // JSON gönderimi için gerekli
 
 internal abstract class Program
 {
@@ -13,20 +14,19 @@ internal abstract class Program
     {
         var line = File.ReadLines("/proc/stat").First();
         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
         var idle = long.Parse(parts[4]);
         var total = parts.Skip(1).Take(7).Select(long.Parse).Sum();
-        
         return (idle, total);
     }
 
-    private static void Main()
+    // Main metodunu 'async' yaptık ki API'ye veri gönderirken uygulama donmasın
+    private static async Task Main()
     {
-        Console.WriteLine("Starting high-precision monitor...");
+        Console.WriteLine("Starting SysGuard Agent...");
+        using var client = new HttpClient(); // HTTP istemcisi oluşturuldu
 
         while (true)
         {
-            // 1. CPU Measurement
             var t1 = GetCpuTimes();
             Thread.Sleep(500); 
             var t2 = GetCpuTimes();
@@ -35,39 +35,15 @@ internal abstract class Program
             double totalDiff = t2.Total - t1.Total;
             double cpuUsage = (1.0 - (idleDiff / totalDiff)) * 100.0;
 
-            // 2. RAM Data
-            var ramPsi = new ProcessStartInfo
-            {
-                FileName = "/bin/bash",
-                Arguments = "-c \"free -m\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            var ramPsi = new ProcessStartInfo { FileName = "/bin/bash", Arguments = "-c \"free -m\"", RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
             using var ramProcess = Process.Start(ramPsi);
             var ramResult = ramProcess?.StandardOutput.ReadToEnd();
 
-            // 3. Uptime Data 
-            var uptimePsi = new ProcessStartInfo
-            {
-                FileName = "/bin/bash",
-                Arguments = "-c \"uptime -p\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            var uptimePsi = new ProcessStartInfo { FileName = "/bin/bash", Arguments = "-c \"uptime -p\"", RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
             using var uptimeProcess = Process.Start(uptimePsi);
             var uptimeResult = uptimeProcess?.StandardOutput.ReadToEnd().Trim().Replace("up ", "");
 
-            // 4. Disk Usage Data 
-            var diskPsi = new ProcessStartInfo
-            {
-                FileName = "/bin/bash",
-                Arguments = "-c \"df -h / | awk 'NR==2 {print $5}'\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            var diskPsi = new ProcessStartInfo { FileName = "/bin/bash", Arguments = "-c \"df -h / | awk 'NR==2 {print $5}'\"", RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
             using var diskProcess = Process.Start(diskPsi);
             var diskResult = diskProcess?.StandardOutput.ReadToEnd().Trim().Replace("%", "");
 
@@ -83,82 +59,50 @@ internal abstract class Program
                         TotalRam = parts[1],
                         UsedRam = parts[2],
                         CpuUsage = cpuUsage.ToString("F1"),
-                        Uptime = uptimeResult ?? "Unknown", // Set Uptime
-                        DiskUsage = diskResult ?? "0"       // Set Disk Usage
+                        Uptime = uptimeResult ?? "Unknown",
+                        DiskUsage = diskResult ?? "0",
+                        CapturedAt = DateTime.Now
                     };
 
                     Console.Clear();
                     DisplayDashboard(stats);
+
+                    // --- API'YE VERİ GÖNDERME ---
+                    try 
+                    {
+                        await client.PostAsJsonAsync("http://localhost:5005/stats", stats);
+                    }
+                    catch { /* API kapalıysa sessizce devam et */ }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error parsing data: {ex.Message}");
-                }
+                catch (Exception ex) { Console.WriteLine($"Error: {ex.Message}"); }
             }
-            
             Thread.Sleep(500); 
         }
-        // ReSharper disable once FunctionNeverReturns
     }
 
     private static void DisplayDashboard(SystemStats stats)
     {
-        var total = double.Parse(stats.TotalRam);
-        var used = double.Parse(stats.UsedRam);
-        var ramPercentage = (used / total) * 100;
-        
-        if (!double.TryParse(stats.CpuUsage, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double cpuPercentage))
-        {
-            cpuPercentage = 0;
-        }
-
-        var diskPercentage = double.TryParse(stats.DiskUsage, out var d) ? d : 0;
+        double total = double.Parse(stats.TotalRam);
+        double used = double.Parse(stats.UsedRam);
+        double ramPercentage = (used / total) * 100;
+        double cpuPercentage = double.TryParse(stats.CpuUsage, out var c) ? c : 0;
+        double diskPercentage = double.TryParse(stats.DiskUsage, out var d) ? d : 0;
 
         Console.WriteLine("======================================");
-        Console.WriteLine("       SYSGUARD LIVE MONITOR          ");
+        Console.WriteLine("       SYSGUARD AGENT (ACTIVE)        ");
         Console.WriteLine("======================================");
-        Console.WriteLine($"Last Update   : {stats.CapturedAt:HH:mm:ss}");
-        Console.WriteLine($"System Uptime : {stats.Uptime}"); // Display Uptime
+        Console.WriteLine($"Uptime: {stats.Uptime} | {stats.CapturedAt:HH:mm:ss}");
         Console.WriteLine("--------------------------------------");
         
-        // CPU
-        Console.Write("CPU Usage     : ");
-        ApplyColorCoding(cpuPercentage);
-        Console.WriteLine($"{cpuPercentage:F1}%");
-        Console.ResetColor();
-        
-        // RAM
-        Console.Write("Used RAM      : ");
-        ApplyColorCoding(ramPercentage);
-        Console.WriteLine($"{stats.UsedRam} MB ({ramPercentage:F1}%)");
-        Console.ResetColor();
-
-        // DISK (NEW)
-        Console.Write("Disk Usage    : ");
-        ApplyColorCoding(diskPercentage);
-        Console.WriteLine($"{diskPercentage}%");
-        Console.ResetColor();
-
+        Console.Write("CPU : "); ApplyColorCoding(cpuPercentage); Console.WriteLine($"{cpuPercentage:F1}%"); Console.ResetColor();
+        Console.Write("RAM : "); ApplyColorCoding(ramPercentage); Console.WriteLine($"{stats.UsedRam} MB ({ramPercentage:F1}%)"); Console.ResetColor();
+        Console.Write("DISK: "); ApplyColorCoding(diskPercentage); Console.WriteLine($"{diskPercentage}%"); Console.ResetColor();
         Console.WriteLine("======================================");
-        
-        if (ramPercentage > 80 || cpuPercentage > 80 || diskPercentage > 80)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("  ALERT: HIGH RESOURCE USAGE!         ");
-            Console.ResetColor();
-            Console.WriteLine("======================================");
-        }
-        
-        Console.WriteLine("Press Ctrl+C to stop");
+        Console.WriteLine("Sending data to: http://localhost:5005");
     }
 
     private static void ApplyColorCoding(double percentage)
     {
-        Console.ForegroundColor = percentage switch
-        {
-            > 80 => ConsoleColor.Red,
-            > 50 => ConsoleColor.Yellow,
-            _ => ConsoleColor.Green
-        };
+        Console.ForegroundColor = percentage > 80 ? ConsoleColor.Red : (percentage > 50 ? ConsoleColor.Yellow : ConsoleColor.Green);
     }
 }
