@@ -1,5 +1,4 @@
-namespace SysGuard.Monitor.Console.Models;
-
+namespace SysGuard.Monitor.Models;
 public class SystemStats
 {
     public string TotalRam { get; set; } = string.Empty;

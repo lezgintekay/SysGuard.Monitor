@@ -1,4 +1,4 @@
-﻿namespace SysGuard.Monitor.Console;
+﻿namespace SysGuard.Monitor.Console; 
 
 using System.Diagnostics;
 using System;
