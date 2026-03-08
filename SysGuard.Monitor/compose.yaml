@@ -1,7 +1,26 @@
 ﻿services:
+ 
   sysguard.monitor.console:
     image: sysguard.monitor.console
     build:
       context: .
       dockerfile: SysGuard.Monitor.Console/Dockerfile
+    depends_on:
+      - db 
 
+
+  db:
+    image: postgres:15-alpine
+    container_name: sysguard_db
+    restart: always
+    environment:
+      POSTGRES_USER: &&&&&
+      POSTGRES_PASSWORD: &&&&&& 
+      POSTGRES_DB: sysguard_monitor
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
