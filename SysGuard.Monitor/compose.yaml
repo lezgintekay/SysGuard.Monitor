@@ -14,8 +14,8 @@
     container_name: sysguard_db
     restart: always
     environment:
-      POSTGRES_USER: &&&&&
-      POSTGRES_PASSWORD: &&&&&& 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ankaragucu1910 
       POSTGRES_DB: sysguard_monitor
     ports:
       - "5432:5432"

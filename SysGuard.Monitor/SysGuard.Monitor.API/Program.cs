@@ -1,6 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using SysGuard.Monitor.Models;
+using SysGuard.Monitor.API.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddControllers();
 
 builder.Services.AddCors(options =>
 {
