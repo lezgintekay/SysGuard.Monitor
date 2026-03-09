@@ -19,10 +19,9 @@ internal abstract class Program
         return (idle, total);
     }
 
- 
     private static async Task Main()
     {
-        Console.WriteLine("Starting SysGuard Agent...");
+        System.Console.WriteLine("Starting SysGuard Agent...");
         using var client = new HttpClient(); 
 
         while (true)
@@ -56,29 +55,40 @@ internal abstract class Program
 
                     var stats = new SystemStats
                     {
+                        MachineName = Environment.MachineName, 
                         TotalRam = parts[1],
                         UsedRam = parts[2],
                         CpuUsage = cpuUsage.ToString("F1"),
                         Uptime = uptimeResult ?? "Unknown",
                         DiskUsage = diskResult ?? "0",
-                        CapturedAt = DateTime.Now
+                        CapturedAt = DateTime.UtcNow 
                     };
 
-                    Console.Clear();
+                    System.Console.Clear();
                     DisplayDashboard(stats);
 
                     try 
                     {
-                        await client.PostAsJsonAsync("http://localhost:5005/stats", stats);
+                       
+                        var response = await client.PostAsJsonAsync("http://localhost:5005/api/metrics", stats);
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            System.Console.WriteLine("Data sent successfully!");
+                        }
+                        else
+                        {
+                            System.Console.WriteLine($"Server Error: {response.StatusCode}");
+                        }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // ignored
+                        System.Console.WriteLine($"Connection Error: {ex.Message}");
                     }
                 }
-                catch (Exception ex) { Console.WriteLine($"Error: {ex.Message}"); }
+                catch (Exception ex) { System.Console.WriteLine($"Error: {ex.Message}"); }
             }
-            Thread.Sleep(500); 
+            Thread.Sleep(1000); 
         }
     }
 
@@ -90,21 +100,21 @@ internal abstract class Program
         double cpuPercentage = double.TryParse(stats.CpuUsage, out var c) ? c : 0;
         double diskPercentage = double.TryParse(stats.DiskUsage, out var d) ? d : 0;
 
-        Console.WriteLine("======================================");
-        Console.WriteLine("       SYSGUARD AGENT (ACTIVE)        ");
-        Console.WriteLine("======================================");
-        Console.WriteLine($"Uptime: {stats.Uptime} | {stats.CapturedAt:HH:mm:ss}");
-        Console.WriteLine("--------------------------------------");
+        System.Console.WriteLine("======================================");
+        System.Console.WriteLine("       SYSGUARD AGENT (ACTIVE)        ");
+        System.Console.WriteLine("======================================");
+        System.Console.WriteLine($"Uptime: {stats.Uptime} | {stats.CapturedAt:HH:mm:ss}");
+        System.Console.WriteLine("--------------------------------------");
         
-        Console.Write("CPU : "); ApplyColorCoding(cpuPercentage); Console.WriteLine($"{cpuPercentage:F1}%"); Console.ResetColor();
-        Console.Write("RAM : "); ApplyColorCoding(ramPercentage); Console.WriteLine($"{stats.UsedRam} MB ({ramPercentage:F1}%)"); Console.ResetColor();
-        Console.Write("DISK: "); ApplyColorCoding(diskPercentage); Console.WriteLine($"{diskPercentage}%"); Console.ResetColor();
-        Console.WriteLine("======================================");
-        Console.WriteLine("Sending data to: http://localhost:5005");
+        System.Console.Write("CPU : "); ApplyColorCoding(cpuPercentage); System.Console.WriteLine($"{cpuPercentage:F1}%"); System.Console.ResetColor();
+        System.Console.Write("RAM : "); ApplyColorCoding(ramPercentage); System.Console.WriteLine($"{stats.UsedRam} MB ({ramPercentage:F1}%)"); System.Console.ResetColor();
+        System.Console.Write("DISK: "); ApplyColorCoding(diskPercentage); System.Console.WriteLine($"{diskPercentage}%"); System.Console.ResetColor();
+        System.Console.WriteLine("======================================");
+        System.Console.WriteLine($"Status: Sending data to API...");
     }
 
     private static void ApplyColorCoding(double percentage)
     {
-        Console.ForegroundColor = percentage > 80 ? ConsoleColor.Red : (percentage > 50 ? ConsoleColor.Yellow : ConsoleColor.Green);
+        System.Console.ForegroundColor = percentage > 80 ? ConsoleColor.Red : (percentage > 50 ? ConsoleColor.Yellow : ConsoleColor.Green);
     }
 }
